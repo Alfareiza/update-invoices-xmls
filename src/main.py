@@ -4,17 +4,16 @@ Procesador de archivos XML para facturación de salud.
 Este módulo procesa archivos XML de facturación, realizando modificaciones
 específicas en campos de prestador, modalidad de pago, cobertura y periodos.
 """
-import tempfile
-import zipfile
 from pathlib import Path
-
+from datetime import datetime
+from apscheduler.schedulers.blocking import BlockingScheduler
+from pytz import timezone
 from src.config import log
 from src.constants import EMAILS_PER_EXECUTION
 from src.drive import GoogleDriveFevCajacopi, GoogleDriveLogistica
 from src.files import File
 from src.gmail import GmailAPIReader
 from src.models.google import EmailMessage
-from src.parser import XMLHealthInvoiceProcessor
 
 
 class Process:
@@ -39,8 +38,8 @@ class Process:
         messages = self.gmail.read_inbox(EMAILS_PER_EXECUTION)
         for i, message in enumerate(messages, 1):
             self.gmail.fetch_email_details(message)
-            if not message.is_email_before_30_nov_2025:
-                continue
+            # if not message.is_email_before_30_nov_2025:
+            #     continue
 
             log.info(f"{i}. {message.id} INICIANDO Leyendo e-mail y descargando adjunto")
             self.gmail.download_attachment(message)
@@ -101,7 +100,23 @@ class Process:
     def post_exception(self, message: EmailMessage):
         """Ejecuta los pasos si el archivo fue editado y cargado exitosamente en el drive"""
         self.gmail.mark_as_read(message.id)
-        ...
+
+def run_process():
+    """
+    Main execution function that orchestrates the entire process.
+    This is the function that will be scheduled by Rocketry.
+    """
+    moment = datetime.now(tz=timezone("America/Bogota"))
+    # Executed from Monday to Saturday, from 6:00:00 up to 20:59:59
+    log.info("SCHEDULER: Iniciando nuevo procesamiento de facturas de Cajacopi.")
+    p = Process()
+    try:
+        p.read_email_and_process_it()
+    except Exception as e:
+        import traceback;traceback.print_exc()
+    else:
+        log.info(f"REPORT: Comenzó a las {moment:%T} y terminó a las {datetime.now(tz=timezone('America/Bogota'))}")
+
 
 def main() -> None:
     processor = Process()
@@ -109,6 +124,11 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    main()
-    # Process().unzip_and_update_invoice(Path('/Users/alfonso/Downloads/ArchivoEjemploIncorrecto_ad09000732230162500173a4e.xml.zip'))
-    # Process().upload_file_to_drive(Path('/Users/alfonso/Downloads/ArchivoEjemploIncorrecto_ad09000732230162500173a4e.xml.zip'), 'facturadepruebalfonso123456')
+    # main()
+    scheduler = BlockingScheduler()
+    scheduler.add_job(run_process, 'interval', minutes=60, id='invoice_processing_job')
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        log.info("Scheduler stopped by user.")
+        scheduler.shutdown()
