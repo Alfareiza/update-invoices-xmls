@@ -6,4 +6,5 @@ google-auth-oauthlib
 lxml
 pydantic
 python-decouple
+pytz
 tenacity
