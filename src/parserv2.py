@@ -115,8 +115,11 @@ class XMLHealthInvoiceProcessor:
     
     @property
     def issue_date(self):
-        pattern = r'FecFac: (\d{4}-\d{2}-\d{2})'
-        return match.group(1) if (match := re.search(pattern, self.content)) else None
+        patterns = {r'FecFac: (\d{4}-\d{2}-\d{2})', r'UUID><cbc:IssueDate>(\d{4}-\d{2}-\d{2})<\/cbc:IssueDate>'}
+        for pattern in patterns:
+            if match := re.search(pattern, self.content):
+                return match.group(1)
+        return None
 
     def logic_codigo_prestador(self):
         if self.codigo_prestador.is_present:
