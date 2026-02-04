@@ -124,11 +124,11 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    # main()
-    scheduler = BlockingScheduler()
-    scheduler.add_job(run_process, 'interval', minutes=60, id='invoice_processing_job')
-    try:
-        scheduler.start()
-    except (KeyboardInterrupt, SystemExit):
-        log.info("Scheduler stopped by user.")
-        scheduler.shutdown()
+    main()
+    # scheduler = BlockingScheduler()
+    # scheduler.add_job(run_process, 'interval', minutes=60, id='invoice_processing_job')
+    # try:
+    #     scheduler.start()
+    # except (KeyboardInterrupt, SystemExit):
+    #     log.info("Scheduler stopped by user.")
+    #     scheduler.shutdown()
