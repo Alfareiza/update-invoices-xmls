@@ -127,14 +127,19 @@ def main() -> None:
 
 if __name__ == '__main__':
     # main()
-    scheduler = BlockingScheduler()
+    scheduler = BlockingScheduler(timezone=timezone("America/Bogota"))
     scheduler.add_job(
         run_process,
-        'interval',
-        minutes=60,
+        'cron',
+        day_of_week='mon-sat',   # Monday to Saturday
+        hour='6-20',             # 6:00 to 20:00 (every hour on the hour)
+        minute=0,
         id='invoice_processing_job',
-        next_run_time=datetime.now(tz=timezone("America/Bogota")),
     )
+    # Optional: run once immediately if within allowed window, then follow schedule
+    now = datetime.now(tz=timezone("America/Bogota"))
+    if now.weekday() < 6 and 6 <= now.hour <= 20:  # Mon-Sat, 6–20
+        run_process()
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
