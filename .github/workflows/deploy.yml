@@ -1,0 +1,48 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy and restart service on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/Projects/rpa-facturas-cajacopi
+
+            # Capture service start time before restart
+            INITIAL_TS=$(systemctl show rpa-facturas-cajacopi.service --property=ActiveEnterTimestamp --value)
+            INITIAL_EPOCH=$(date -d "$INITIAL_TS" +%s)
+
+            # Reset repo and pull latest
+            git restore .
+            git checkout main
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Restart the service
+            sudo systemctl restart rpa-facturas-cajacopi.service
+
+            # Wait for service to be up
+            sleep 5
+
+            # Verify restart: new "active since" must be at least 30s after the previous one
+            CURRENT_TS=$(systemctl show rpa-facturas-cajacopi.service --property=ActiveEnterTimestamp --value)
+            CURRENT_EPOCH=$(date -d "$CURRENT_TS" +%s)
+            DIFF=$((CURRENT_EPOCH - INITIAL_EPOCH))
+
+            if [ "$DIFF" -ge 30 ]; then
+              echo "✅ Restart verified: service started $DIFF seconds after previous run"
+              exit 0
+            else
+              echo "❌ Restart verification failed: timestamp diff was ${DIFF}s (expected >= 30s)"
+              exit 1
+            fi
