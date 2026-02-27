@@ -4,6 +4,8 @@ Procesador de archivos XML para facturación de salud.
 Este módulo procesa archivos XML de facturación, realizando modificaciones
 específicas en campos de prestador, modalidad de pago, cobertura y periodos.
 """
+import warnings
+warnings.filterwarnings("ignore", message=".*'orm_mode' has been renamed to 'from_attributes'", category=UserWarning)
 from pathlib import Path
 from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -126,7 +128,13 @@ def main() -> None:
 if __name__ == '__main__':
     # main()
     scheduler = BlockingScheduler()
-    scheduler.add_job(run_process, 'interval', minutes=60, id='invoice_processing_job')
+    scheduler.add_job(
+        run_process,
+        'interval',
+        minutes=60,
+        id='invoice_processing_job',
+        next_run_time=datetime.now(tz=timezone("America/Bogota")),
+    )
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
